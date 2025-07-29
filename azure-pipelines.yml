@@ -1,0 +1,67 @@
+# Android Pipeline for GitHub Repository
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+# Step 1: Set up Java JDK
+- task: JavaToolInstaller@0
+  displayName: 'Install JDK 17'
+  inputs:
+    versionSpec: '17'
+    jdkArchitectureOption: 'x64'
+    jdkSourceOption: 'PreInstalled'
+
+# Step 2: Make gradlew executable
+- script: chmod +x gradlew
+  displayName: 'Make gradlew executable'
+
+# Step 3: Clean the project
+- task: Gradle@2
+  displayName: 'Clean Project'
+  inputs:
+    workingDirectory: ''
+    gradleWrapperFile: 'gradlew'
+    gradleOptions: '-Xmx3072m'
+    publishJUnitResults: false
+    testResultsFiles: '**/TEST-*.xml'
+    tasks: 'clean'
+
+# Step 4: Run tests
+- task: Gradle@2
+  displayName: 'Run Unit Tests'
+  inputs:
+    workingDirectory: ''
+    gradleWrapperFile: 'gradlew'
+    gradleOptions: '-Xmx3072m'
+    publishJUnitResults: true
+    testResultsFiles: '**/TEST-*.xml'
+    tasks: 'testDebugUnitTest'
+
+# Step 5: Build Debug APK
+- task: Gradle@2
+  displayName: 'Build Debug APK'
+  inputs:
+    workingDirectory: ''
+    gradleWrapperFile: 'gradlew'
+    gradleOptions: '-Xmx3072m'
+    publishJUnitResults: false
+    testResultsFiles: '**/TEST-*.xml'
+    tasks: 'assembleDebug'
+
+# Step 6: Copy APK to artifact staging
+- task: CopyFiles@2
+  displayName: 'Copy APK files'
+  inputs:
+    contents: '**/*.apk'
+    targetFolder: '$(Build.ArtifactStagingDirectory)'
+
+# Step 7: Publish APK as build artifact
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish APK'
+  inputs:
+    pathToPublish: '$(Build.ArtifactStagingDirectory)'
+    artifactName: 'android-apk'
+    publishLocation: 'Container'
